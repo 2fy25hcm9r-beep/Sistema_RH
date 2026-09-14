@@ -114,12 +114,25 @@ urlpatterns = [
         }
     ),
 
+    # Logo Delma
+    re_path(
+        r'^logo_delma\.webp$',
+        serve,
+        {
+            'document_root': os.path.join(
+                settings.BASE_DIR,
+                'staticfiles'
+            ),
+            'path': 'logo_delma.webp'
+        }
+    ),
+
     # Frontend React
     path('', frontend_view),
 
     # Rutas de React Router
     re_path(
-        r'^(?!api/|assets/|favicon\.svg).*',
+        r'^(?!api/|assets/|favicon\.svg|logo_delma\.webp).*',
         frontend_view
     ),
 ]
