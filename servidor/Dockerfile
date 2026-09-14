@@ -17,10 +17,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Permisos para el entrypoint
-RUN chmod +x /entrypoint.sh
+RUN chmod +x entrypoint.sh
 
 # Puerto utilizado por Railway
 EXPOSE 8000
 
 # Iniciar migraciones, archivos estáticos y Gunicorn
-ENTRYPOINT ["/entrypoint.sh"]
+ENTRYPOINT ["./entrypoint.sh"]
