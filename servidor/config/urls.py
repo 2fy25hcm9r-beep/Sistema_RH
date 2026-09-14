@@ -8,6 +8,8 @@ from django.core.exceptions import ValidationError
 from django.conf import settings
 from django.http import HttpResponse
 from django.views.static import serve
+import mimetypes
+mimetypes.add_type('image/webp', '.webp')
 import os
 
 
