@@ -1,0 +1,37 @@
+version: "3.9"
+
+services:
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: app_money
+    restart: always
+    volumes:
+      # Persistencia de imágenes de perfil
+      - profiles_data:/app/interface/static/images/profiles
+    environment:
+      - FLASK_ENV=${FLASK_ENV}
+      - FLASK_SECRET_KEY=${FLASK_SECRET_KEY}
+      - DB_HOST=${DB_HOST}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+      - SERVER_HOST=${SERVER_HOST}
+      - SERVER_PORT=${SERVER_PORT}
+      - SERVER_THREADS=${SERVER_THREADS}
+
+    networks:
+      - proxy
+      - appmoney
+
+networks:
+  proxy:
+    external: true
+  appmoney:
+    external: true
+
+volumes:
+  profiles_data:
+    name: app_money_profiles    
