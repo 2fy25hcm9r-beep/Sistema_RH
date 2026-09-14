@@ -1,7 +1,7 @@
 from django.apps import AppConfig
 
 
-class EncuestasConfig(AppConfig):
+class UsuariosConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
-    name = 'apps.encuestas'
-    verbose_name = 'Encuestas de RH'
+    name = 'apps.usuarios'
+    verbose_name = 'Usuarios y Empleados'

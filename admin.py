@@ -1,30 +1,36 @@
 from django.contrib import admin
-from .models import Encuesta, Pregunta, AccesoEncuesta, RespuestaEncuesta
+from .models import Usuario, Empleado
 
 
-class PreguntaInline(admin.TabularInline):
-    model = Pregunta
-    extra = 1
+@admin.register(Empleado)
+class EmpleadoAdmin(admin.ModelAdmin):
+    list_display = [
+        'numero_empleado', 'nombre_completo',
+        'activo', 'puede_contestar_encuesta', 'fecha_alta'
+    ]
+    list_filter = ['activo', 'puede_contestar_encuesta']
+    search_fields = ['numero_empleado', 'nombre', 'apellido_paterno']
+    list_editable = ['puede_contestar_encuesta', 'activo']
+    ordering = ['apellido_paterno', 'nombre']
 
 
-class AccesoInline(admin.TabularInline):
-    model = AccesoEncuesta
-    extra = 0
-    readonly_fields = ['fecha_asignacion']
+from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 
-
-@admin.register(Encuesta)
-class EncuestaAdmin(admin.ModelAdmin):
-    list_display = ['titulo', 'estado', 'fecha_inicio', 'fecha_fin', 'total_asignados', 'total_respondidas']
-    list_filter = ['estado']
-    search_fields = ['titulo']
-    inlines = [PreguntaInline, AccesoInline]
-    readonly_fields = ['fecha_creacion', 'fecha_modificacion']
-
-
-@admin.register(RespuestaEncuesta)
-class RespuestaEncuestaAdmin(admin.ModelAdmin):
-    list_display = ['empleado', 'encuesta', 'completada', 'puntaje_total', 'fecha_completado']
-    list_filter = ['completada', 'encuesta']
-    search_fields = ['empleado__numero_empleado', 'empleado__apellido_paterno']
-    readonly_fields = ['fecha_inicio_respuesta', 'fecha_completado']
+@admin.register(Usuario)
+class UsuarioAdmin(BaseUserAdmin):
+    fieldsets = (
+        (None, {'fields': ('username', 'password')}),
+        ('Información personal', {'fields': ('first_name', 'last_name', 'rol')}),
+        ('Permisos', {'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')}),
+        ('Fechas', {'fields': ('last_login', 'date_joined')}),
+    )
+    add_fieldsets = (
+        (None, {
+            'classes': ('wide',),
+            'fields': ('username', 'password1', 'password2', 'rol', 'is_active', 'is_staff', 'is_superuser'),
+        }),
+    )
+    list_display = ['username', 'first_name', 'last_name', 'rol', 'is_active']
+    list_filter = ['rol', 'is_active', 'is_staff', 'is_superuser']
+    search_fields = ['username', 'first_name', 'last_name']
+    ordering = ['username']

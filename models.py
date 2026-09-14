@@ -1,162 +1,232 @@
+
 from django.db import models
-from django.core.validators import MinValueValidator, MaxValueValidator
-from apps.usuarios.models import Empleado, Usuario
+from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
 
 
-class Encuesta(models.Model):
-    ESTADO = [
-        ('borrador', 'Borrador'),
-        ('activa', 'Activa'),
-        ('cerrada', 'Cerrada'),
+class UsuarioManager(BaseUserManager):
+    def create_user(self, username, password=None, **extra_fields):
+        if not username:
+            raise ValueError('El nombre de usuario es obligatorio')
+        user = self.model(username=username, **extra_fields)
+        user.set_password(password)
+        user.save(using=self._db)
+        return user
+
+    def create_superuser(self, username, password=None, **extra_fields):
+        extra_fields.setdefault('is_staff', True)
+        extra_fields.setdefault('is_superuser', True)
+        if extra_fields.get('is_staff') is not True:
+            raise ValueError('El superusuario debe tener is_staff=True.')
+        if extra_fields.get('is_superuser') is not True:
+            raise ValueError('El superusuario debe tener is_superuser=True.')
+        return self.create_user(username, password, **extra_fields)
+
+
+class Usuario(AbstractBaseUser, PermissionsMixin):
+    ROLES = [
+        ('admin', 'Administrador'),
+        ('rh', 'Recursos Humanos'),
+        ('visor', 'Visor de Reportes'),
     ]
-    titulo = models.CharField(max_length=200)
-    descripcion = models.TextField(blank=True, default='')
-    estado = models.CharField(max_length=10, choices=ESTADO, default='borrador')
-    fecha_inicio = models.DateField()
-    fecha_fin = models.DateField()
-    creado_por = models.ForeignKey(
-        Usuario,
-        on_delete=models.SET_NULL,
-        null=True,
-        related_name='encuestas_creadas'
+    username = models.CharField(max_length=150, unique=True)
+    first_name = models.CharField(max_length=150, blank=True, default='')
+    last_name = models.CharField(max_length=150, blank=True, default='')
+    rol = models.CharField(max_length=10, choices=ROLES, default='visor')
+    is_staff = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
+    date_joined = models.DateTimeField(auto_now_add=True)
+
+    objects = UsuarioManager()
+
+    USERNAME_FIELD = 'username'
+    REQUIRED_FIELDS = []
+
+    class Meta:
+        verbose_name = 'Usuario'
+        verbose_name_plural = 'Usuarios'
+
+    def __str__(self):
+        return f'{self.get_full_name()} ({self.username})'
+
+    def get_full_name(self):
+        return f'{self.first_name} {self.last_name}'.strip()
+
+
+
+
+
+
+
+
+
+class Empleado(models.Model):
+    """
+    Empleado de la empresa. Se identifica por su número de empleado.
+    Solo los empleados con 'puede_contestar=True' podrán responder encuestas.
+    """
+    numero_empleado = models.CharField(max_length=20, unique=True)
+    nombre = models.CharField(max_length=100)
+    apellido_paterno = models.CharField(max_length=100)
+    apellido_materno = models.CharField(max_length=100, blank=True, default='')
+    activo = models.BooleanField(default=True)
+    puede_contestar_encuesta = models.BooleanField(
+        default=True,
+        help_text='Habilita al empleado para contestar encuestas de RH'
     )
-    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    fecha_alta = models.DateField()
     fecha_modificacion = models.DateTimeField(auto_now=True)
 
-    class Meta:
-        verbose_name = 'Encuesta'
-        verbose_name_plural = 'Encuestas'
-        ordering = ['-fecha_creacion']
-
-    def __str__(self):
-        return self.titulo
-
-    @property
-    def total_asignados(self):
-        return self.accesos.filter(puede_contestar=True).count()
-
-    @property
-    def total_respondidas(self):
-        return self.respuestas.filter(completada=True).count()
-
-    @property
-    def porcentaje_completado(self):
-        asignados = self.total_asignados
-        if asignados == 0:
-            return 0
-        return round((self.total_respondidas / asignados) * 100, 1)
-
-
-class Pregunta(models.Model):
-    TIPOS = [
-        ('escala', 'Escala (1-5)'),
-        ('opcion_multiple', 'Opción Múltiple'),
-        ('si_no', 'Sí / No'),
-        ('texto_libre', 'Texto Libre'),
+    SEXO_OPCIONES = [
+        ('M', 'Masculino'),
+        ('F', 'Femenino'),
     ]
-    TIPO_PUNTUACION = [
-        ('directa', 'Directa'),
-        ('invertida', 'Invertida'),
+    sexo = models.CharField(max_length=1, choices=SEXO_OPCIONES, blank=True, default='')
+
+    EDAD_OPCIONES = [
+        ('15-19', '15 - 19'),
+        ('20-24', '20 - 24'),
+        ('25-29', '25 - 29'),
+        ('30-34', '30 - 34'),
+        ('35-39', '35 - 39'),
+        ('40-44', '40 - 44'),
+        ('45-49', '45 - 49'),
+        ('50-54', '50 - 54'),
+        ('55-59', '55 - 59'),
+        ('60-64', '60 - 64'),
+        ('65-69', '65 - 69'),
+        ('70+', '70 o más'),
     ]
-    encuesta = models.ForeignKey(
-        Encuesta,
-        on_delete=models.CASCADE,
-        related_name='preguntas'
-    )
-    texto = models.CharField(max_length=500)
-    tipo = models.CharField(max_length=20, choices=TIPOS, default='escala')
-    tipo_puntuacion = models.CharField(max_length=10, choices=TIPO_PUNTUACION, default='directa', help_text='Directa: Siempre=4, Nunca=0. Invertida: Siempre=0, Nunca=4')
-    orden = models.PositiveSmallIntegerField(default=1)
-    requerida = models.BooleanField(default=True)
+    edad = models.CharField(max_length=10, choices=EDAD_OPCIONES, blank=True, default='')
+
+    ESTADO_CIVIL_OPCIONES = [
+        ('casado', 'Casado'),
+        ('divorciado', 'Divorciado'),
+        ('soltero', 'Soltero'),
+        ('viudo', 'Viudo'),
+        ('union_libre', 'Unión libre'),
+    ]
+    estado_civil = models.CharField(max_length=20, choices=ESTADO_CIVIL_OPCIONES, blank=True, default='')
+
+    NIVEL_ESTUDIOS_OPCIONES = [
+        ('sin_formacion', 'Sin formación'),
+        ('primaria_terminada', 'Primaria Terminada'),
+        ('primaria_incompleta', 'Primaria Incompleta'),
+        ('secundaria_terminada', 'Secundaria Terminada'),
+        ('secundaria_incompleta', 'Secundaria Incompleta'),
+        ('preparatoria_terminada', 'Preparatoria o Bachillerato Terminada'),
+        ('preparatoria_incompleta', 'Preparatoria o Bachillerato Incompleta'),
+        ('tecnico_terminada', 'Técnico Superior Terminada'),
+        ('tecnico_incompleta', 'Técnico Superior Incompleta'),
+        ('licenciatura_terminada', 'Licenciatura Terminada'),
+        ('licenciatura_incompleta', 'Licenciatura Incompleta'),
+        ('maestria_terminada', 'Maestría Terminada'),
+        ('maestria_incompleta', 'Maestría Incompleta'),
+        ('doctorado_terminada', 'Doctorado Terminada'),
+        ('doctorado_incompleta', 'Doctorado Incompleta'),
+    ]
+    nivel_estudios = models.CharField(max_length=30, choices=NIVEL_ESTUDIOS_OPCIONES, blank=True, default='')
+
+    ocupacion = models.CharField(max_length=200, blank=True, default='')
+    departamento = models.CharField(max_length=200, blank=True, default='')
+
+    TIPO_PUESTO_OPCIONES = [
+        ('operativo', 'Operativo'),
+        ('supervisor', 'Supervisor'),
+        ('profesional', 'Profesional o técnico'),
+        ('gerente', 'Gerente'),
+    ]
+    tipo_puesto = models.CharField(max_length=20, choices=TIPO_PUESTO_OPCIONES, blank=True, default='')
+
+    TIPO_CONTRATACION_OPCIONES = [
+        ('obra_proyecto', 'Por obra o proyecto'),
+        ('indeterminado', 'Tiempo indeterminado'),
+        ('determinado', 'Por tiempo determinado (temporal)'),
+        ('honorarios', 'Honorarios'),
+    ]
+    tipo_contratacion = models.CharField(max_length=20, choices=TIPO_CONTRATACION_OPCIONES, blank=True, default='')
+
+    TIPO_PERSONAL_OPCIONES = [
+        ('sindicalizado', 'Sindicalizado'),
+        ('confianza', 'Confianza'),
+        ('ninguno', 'Ninguno'),
+    ]
+    tipo_personal = models.CharField(max_length=20, choices=TIPO_PERSONAL_OPCIONES, blank=True, default='')
+
+    TIPO_JORNADA_OPCIONES = [
+        ('nocturno', 'Fijo nocturno (entre las 20:00 y 6:00 hrs)'),
+        ('mixto', 'Fijo mixto (combinación de nocturno y diurno)'),
+        ('diurno', 'Fijo diurno (entre las 6:00 y 20:00 hrs)'),
+    ]
+    tipo_jornada = models.CharField(max_length=20, choices=TIPO_JORNADA_OPCIONES, blank=True, default='')
+
+    ROTACION_OPCIONES = [
+        ('si', 'Sí'),
+        ('no', 'No'),
+    ]
+    rotacion_turnos = models.CharField(max_length=2, choices=ROTACION_OPCIONES, blank=True, default='')
+
+    TIEMPO_PUESTO_OPCIONES = [
+        ('menos_6m', 'Menos de 6 meses'),
+        ('6m_1a', 'Entre 6 meses y 1 año'),
+        ('1_4a', 'Entre 1 a 4 años'),
+        ('5_9a', 'Entre 5 a 9 años'),
+        ('10_14a', 'Entre 10 a 14 años'),
+        ('15_19a', 'Entre 15 a 19 años'),
+        ('20_24a', 'Entre 20 a 24 años'),
+        ('25a+', '25 años o más'),
+    ]
+    tiempo_puesto_actual = models.CharField(max_length=10, choices=TIEMPO_PUESTO_OPCIONES, blank=True, default='')
+    tiempo_experiencia = models.CharField(max_length=10, choices=TIEMPO_PUESTO_OPCIONES, blank=True, default='')
+
+    SI_NO_OPCIONES = [
+        ('si', 'Sí'),
+        ('no', 'No'),
+    ]
+
+    accidente_grave = models.CharField(max_length=2, choices=SI_NO_OPCIONES, blank=True, default='')
+    asalto = models.CharField(max_length=2, choices=SI_NO_OPCIONES, blank=True, default='')
+    actos_violentos = models.CharField(max_length=2, choices=SI_NO_OPCIONES, blank=True, default='')
+    secuestro = models.CharField(max_length=2, choices=SI_NO_OPCIONES, blank=True, default='')
+    amenazas = models.CharField(max_length=2, choices=SI_NO_OPCIONES, blank=True, default='')
+    otro_riesgo_vida_salud = models.CharField(max_length=2, choices=SI_NO_OPCIONES, blank=True, default='')
+
+    recuerdos_recurrentes_malestar = models.CharField(max_length=2, choices=SI_NO_OPCIONES, blank=True, default='')
+    suenos_recurrentes_malestar = models.CharField(max_length=2, choices=SI_NO_OPCIONES, blank=True, default='')
+    evitar_sentimientos_conversaciones = models.CharField(max_length=2, choices=SI_NO_OPCIONES, blank=True, default='')
+    evitar_actividades_lugares_personas = models.CharField(max_length=2, choices=SI_NO_OPCIONES, blank=True, default='')
+    dificultad_recordar_evento = models.CharField(max_length=2, choices=SI_NO_OPCIONES, blank=True, default='')
+    disminuye_interes_actividades = models.CharField(max_length=2, choices=SI_NO_OPCIONES, blank=True, default='')
+    sensacion_alejamiento = models.CharField(max_length=2, choices=SI_NO_OPCIONES, blank=True, default='')
+    dificultad_expresar_sentimientos = models.CharField(max_length=2, choices=SI_NO_OPCIONES, blank=True, default='')
+    vida_futuro_limitado = models.CharField(max_length=2, choices=SI_NO_OPCIONES, blank=True, default='')
+    dificultad_dormir = models.CharField(max_length=2, choices=SI_NO_OPCIONES, blank=True, default='')
+    irritable_arranos_coraje = models.CharField(max_length=2, choices=SI_NO_OPCIONES, blank=True, default='')
+    dificultad_concentrarse = models.CharField(max_length=2, choices=SI_NO_OPCIONES, blank=True, default='')
+    nervioso_alerta = models.CharField(max_length=2, choices=SI_NO_OPCIONES, blank=True, default='')
+    sobresalta_facilmente = models.CharField(max_length=2, choices=SI_NO_OPCIONES, blank=True, default='')
 
     class Meta:
-        verbose_name = 'Pregunta'
-        verbose_name_plural = 'Preguntas'
-        ordering = ['encuesta', 'orden']
-        unique_together = [['encuesta', 'orden']]
+        verbose_name = 'Empleado'
+        verbose_name_plural = 'Empleados'
+        ordering = ['apellido_paterno', 'apellido_materno', 'nombre']
 
     def __str__(self):
-        return f'[{self.encuesta}] P{self.orden}: {self.texto[:60]}'
+        return f'[{self.numero_empleado}] {self.nombre} {self.apellido_paterno}'
+
+    @property
+    def nombre_completo(self):
+        return f'{self.nombre} {self.apellido_paterno} {self.apellido_materno}'.strip()
 
 
-class AccesoEncuesta(models.Model):
-    """Controla qué empleados tienen acceso a contestar una encuesta específica."""
-    encuesta = models.ForeignKey(
-        Encuesta,
-        on_delete=models.CASCADE,
-        related_name='accesos'
-    )
-    empleado = models.ForeignKey(
-        Empleado,
-        on_delete=models.CASCADE,
-        related_name='accesos_encuestas'
-    )
-    puede_contestar = models.BooleanField(default=True)
-    fecha_asignacion = models.DateTimeField(auto_now_add=True)
+class SolicitudResetPassword(models.Model):
+    usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE)
+    fecha_solicitud = models.DateTimeField(auto_now_add=True)
+    atendida = models.BooleanField(default=False)
 
     class Meta:
-        verbose_name = 'Acceso a Encuesta'
-        verbose_name_plural = 'Accesos a Encuestas'
-        unique_together = [['encuesta', 'empleado']]
+        verbose_name = 'Solicitud de Reset de Contraseña'
+        verbose_name_plural = 'Solicitudes de Reset de Contraseña'
+        ordering = ['-fecha_solicitud']
 
     def __str__(self):
-        estado = 'habilitado' if self.puede_contestar else 'deshabilitado'
-        return f'{self.empleado} → {self.encuesta} [{estado}]'
-
-
-class RespuestaEncuesta(models.Model):
-    """Registro de la respuesta completa de un empleado a una encuesta."""
-    encuesta = models.ForeignKey(
-        Encuesta,
-        on_delete=models.CASCADE,
-        related_name='respuestas'
-    )
-    empleado = models.ForeignKey(
-        Empleado,
-        on_delete=models.CASCADE,
-        related_name='respuestas_encuestas'
-    )
-    fecha_inicio_respuesta = models.DateTimeField(auto_now_add=True)
-    fecha_completado = models.DateTimeField(null=True, blank=True)
-    completada = models.BooleanField(default=False)
-    puntaje_total = models.DecimalField(
-        max_digits=5, decimal_places=2, null=True, blank=True
-    )
-    puntaje_condiciones_trabajo = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True, help_text="Puntaje de las 30 preguntas de condiciones de trabajo")
-    nivel_riesgo = models.CharField(max_length=20, null=True, blank=True, choices=[("nulo", "Nulo"), ("bajo", "Bajo"), ("medio", "Medio"), ("alto", "Alto"), ("muy_alto", "Muy Alto")])
-    puntaje_normalizado = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True, help_text="Puntaje normalizado 0-100")
-
-    class Meta:
-        verbose_name = 'Respuesta de Encuesta'
-        verbose_name_plural = 'Respuestas de Encuestas'
-
-    def __str__(self):
-        return f'{self.empleado} - {self.encuesta} ({"completada" if self.completada else "pendiente"})'
-
-
-class RespuestaPregunta(models.Model):
-    """Respuesta individual a una pregunta dentro de una encuesta respondida."""
-    respuesta_encuesta = models.ForeignKey(
-        RespuestaEncuesta,
-        on_delete=models.CASCADE,
-        related_name='respuestas_preguntas'
-    )
-    pregunta = models.ForeignKey(
-        Pregunta,
-        on_delete=models.CASCADE,
-        related_name='respuestas'
-    )
-    valor_escala = models.SmallIntegerField(
-        null=True,
-        blank=True,
-        validators=[MinValueValidator(1), MaxValueValidator(5)]
-    )
-    texto_respuesta = models.TextField(blank=True, default='')
-
-    class Meta:
-        verbose_name = 'Respuesta a Pregunta'
-        verbose_name_plural = 'Respuestas a Preguntas'
-        unique_together = [['respuesta_encuesta', 'pregunta']]
-
-    def __str__(self):
-        return f'Resp. de {self.respuesta_encuesta.empleado} a P{self.pregunta.orden}'
+        return f'Solicitud de {self.usuario.username} el {self.fecha_solicitud}'
