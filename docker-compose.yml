@@ -34,4 +34,4 @@ networks:
 
 volumes:
   profiles_data:
-    name: app_money_profiles
+    name: app_money_profiles    

@@ -68,7 +68,7 @@ rh_proyect/
 - Python 3.12
 - Node.js 18+
 - MySQL 8.0+
-- Git (opcional)
+- Git(opcional)
 
 ### 1. Base de datos MySQL
 
@@ -334,3 +334,8 @@ Este proyecto es de uso interno para la empresa.
 ## Contacto y soporte
 
 Para reportar bugs o sugerencias, contacta al equipo de desarrollo.
+
+
+
+
+

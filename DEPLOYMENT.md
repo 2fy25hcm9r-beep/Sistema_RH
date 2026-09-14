@@ -698,14 +698,14 @@ npm update
 **Backend (Django):**
 - Logs en consola durante desarrollo
 - Configurar logging en `servidor/config/settings.py` para producción
-- En Docker: `docker logs rh_backend`
-- Healthcheck en `http://localhost:8000/api/health/`
+- En Docker: \`docker logs rh_backend\`
+- Healthcheck en \`http://localhost:8000/api/health/\`
 
 **Frontend (React + Vite):**
 - Logs en consola del navegador
 - Logs de build en terminal
-- En Docker: `docker logs rh_frontend`
-- Healthcheck en `http://localhost:80`
+- En Docker: \`docker logs rh_frontend\`
+- Healthcheck en \`http://localhost:80\`
 
 ---
 
